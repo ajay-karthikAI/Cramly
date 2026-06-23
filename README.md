@@ -119,6 +119,16 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Deployment
+
+Production-style hosting is configured for Vercel plus Render:
+
+- Vercel serves the Next.js app from `frontend/`.
+- Render serves the FastAPI backend from `backend/` and creates Postgres from `render.yaml`.
+- Uploads should use Cloudflare R2, AWS S3, or another S3-compatible bucket.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) and `.env.production.example` for the exact setup.
+
 ## Tests
 
 ```bash

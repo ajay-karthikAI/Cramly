@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: cramly-api
+    runtime: docker
+    rootDir: backend
+    region: oregon
+    plan: starter
+    branch: main
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: CRAMLY_ENV
+        value: beta
+      - key: CRAMLY_ALLOW_DEMO_MODE
+        value: "false"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+      - key: OPENAI_EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_MINUTES
+        value: "10080"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cramly-postgres
+          property: connectionString
+      - key: CORS_ORIGINS
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: CRAMLY_INVITE_CODE
+        sync: false
+
+databases:
+  - name: cramly-postgres
+    plan: basic-256mb
+    region: oregon
+    databaseName: cramly
+    user: cramly
+    postgresMajorVersion: "16"
