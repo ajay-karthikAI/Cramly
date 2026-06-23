@@ -1,0 +1,9 @@
+__pycache__
+.pytest_cache
+tests
+storage
+*.pyc
+.DS_Store
+.env
+package-lock.json
+

@@ -1,0 +1,89 @@
+services:
+  postgres:
+    container_name: cramly-postgres
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: cramly
+      POSTGRES_PASSWORD: cramly
+      POSTGRES_DB: cramly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cramly -d cramly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      cramly:
+        aliases:
+          - postgres
+
+  minio:
+    container_name: cramly-minio
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    networks:
+      cramly:
+        aliases:
+          - minio
+
+  backend:
+    container_name: cramly-backend
+    build: ./backend
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      CRAMLY_ALLOW_DEMO_MODE: "false"
+      CRAMLY_INVITE_CODE: ${CRAMLY_INVITE_CODE:-}
+      JWT_SECRET: ${JWT_SECRET:-change-this-local-secret}
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-10080}
+      DATABASE_URL: postgresql://cramly:cramly@cramly-postgres:5432/cramly
+      S3_ENDPOINT_URL: http://cramly-minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: cramly-uploads
+      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGIN_REGEX: https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    networks:
+      cramly:
+        aliases:
+          - backend
+
+  frontend:
+    container_name: cramly-frontend
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_REQUIRE_INVITE_CODE: ${NEXT_PUBLIC_REQUIRE_INVITE_CODE:-false}
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      cramly:
+        aliases:
+          - frontend
+
+networks:
+  cramly:
+    name: cramly_network
+
+volumes:
+  pgdata:
+  miniodata:
