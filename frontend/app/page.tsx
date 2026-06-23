@@ -5,6 +5,7 @@ import {
   BookOpen,
   Brain,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -114,6 +115,9 @@ type AuthResponse = {
   access_token: string;
   user: User;
 };
+
+type PracticePage = "flashcards" | "quiz" | "study-plan";
+type WorkspacePage = PracticePage | "materials";
 
 type UploadState = {
   active: boolean;
@@ -281,6 +285,7 @@ function formatSavedDate(value?: string | null) {
 
 export default function Home() {
   const [showDashboard, setShowDashboard] = useState(false);
+  const [landingExiting, setLandingExiting] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -323,6 +328,9 @@ export default function Home() {
   });
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("Sign in to make your study space private.");
+  const [practiceMenuOpen, setPracticeMenuOpen] = useState(false);
+  const [practicePage, setPracticePage] = useState<WorkspacePage | null>(null);
+  const [flashcardListOpen, setFlashcardListOpen] = useState(false);
 
   const sourceText = useMemo(() => {
     if (!chat) return "Ready";
@@ -457,6 +465,9 @@ export default function Home() {
     setPracticePanelOpen(false);
     setPracticeSection("focus");
     setPracticeMode("flashcards");
+    setPracticeMenuOpen(false);
+    setPracticePage(null);
+    setFlashcardListOpen(false);
     setFlashcardView("due");
     setFlashcardDisplayMode("card");
     setCurrentFlashcardIndex(0);
@@ -480,6 +491,42 @@ export default function Home() {
 
   function signOut() {
     clearSession("Signed out. Your next session starts private.");
+  }
+
+  function goHome() {
+    setPracticeMenuOpen(false);
+    setPracticePanelOpen(false);
+    setPracticePage(null);
+    setShowDashboard(true);
+  }
+
+  function openPracticePage(page: PracticePage) {
+    setPracticeMenuOpen(false);
+    setPracticePanelOpen(false);
+    setPracticePage(page);
+    if (page === "flashcards") {
+      setPracticeSection("flashcards");
+      setPracticeMode("flashcards");
+    } else if (page === "quiz") {
+      setPracticeSection("quiz");
+      setPracticeMode("quiz");
+    } else {
+      setPracticeSection("focus");
+    }
+  }
+
+  function openMaterialsPage() {
+    setPracticeMenuOpen(false);
+    setPracticePanelOpen(false);
+    setPracticePage("materials");
+  }
+
+  function openStudyDashboard() {
+    if (landingExiting) return;
+    setLandingExiting(true);
+    window.setTimeout(() => {
+      setShowDashboard(true);
+    }, 560);
   }
 
   async function ask(event: FormEvent) {
@@ -590,10 +637,9 @@ export default function Home() {
       setNotice("Sign in before generating flashcards.");
       return;
     }
-    setPracticeMode("flashcards");
-    setPracticeSection("flashcards");
-    setPracticePanelOpen(true);
+    openPracticePage("flashcards");
     setFlashcardView("due");
+    setFlashcardListOpen(false);
     setBusy("flashcards");
     try {
       const response = await apiPost<{ cards: Flashcard[] }>("/api/flashcards", {
@@ -620,9 +666,7 @@ export default function Home() {
       setNotice("Sign in before generating a quiz.");
       return;
     }
-    setPracticeMode("quiz");
-    setPracticeSection("quiz");
-    setPracticePanelOpen(true);
+    openPracticePage("quiz");
     setBusy("quiz");
     try {
       const response = await apiPost<Quiz>("/api/quizzes", {
@@ -672,8 +716,7 @@ export default function Home() {
       setNotice("Sign in before generating a study plan.");
       return;
     }
-    setPracticeSection("focus");
-    setPracticePanelOpen(true);
+    openPracticePage("study-plan");
     setBusy("study-plan");
     try {
       const response = await apiPost<StudyPlan>("/api/study-plan", {}, token);
@@ -688,10 +731,9 @@ export default function Home() {
 
   async function showDueFlashcards() {
     if (!token) return;
-    setPracticeMode("flashcards");
-    setPracticeSection("flashcards");
-    setPracticePanelOpen(true);
+    openPracticePage("flashcards");
     setFlashcardView("due");
+    setFlashcardListOpen(false);
     setBusy("flashcard-history");
     try {
       const response = await apiGet<{ cards: Flashcard[] }>("/api/flashcards/due", token);
@@ -709,10 +751,9 @@ export default function Home() {
 
   async function showSavedFlashcards() {
     if (!token) return;
-    setPracticeMode("flashcards");
-    setPracticeSection("flashcards");
-    setPracticePanelOpen(true);
+    openPracticePage("flashcards");
     setFlashcardView("saved");
+    setFlashcardListOpen(false);
     setBusy("flashcard-history");
     try {
       const response = await apiGet<{ cards: Flashcard[] }>("/api/flashcards", token);
@@ -731,9 +772,7 @@ export default function Home() {
 
   async function showSavedQuizzes() {
     if (!token) return;
-    setPracticeMode("quiz");
-    setPracticeSection("quiz");
-    setPracticePanelOpen(true);
+    openPracticePage("quiz");
     setBusy("quiz-history");
     try {
       const response = await apiGet<Quiz[]>("/api/quizzes", token);
@@ -794,10 +833,15 @@ export default function Home() {
   }
 
   function openPractice(section: "focus" | "flashcards" | "quiz" | "weak") {
-    setPracticeSection(section);
-    if (section === "flashcards") setPracticeMode("flashcards");
-    if (section === "quiz") setPracticeMode("quiz");
-    setPracticePanelOpen(true);
+    if (section === "flashcards") {
+      openPracticePage("flashcards");
+      return;
+    }
+    if (section === "quiz") {
+      openPracticePage("quiz");
+      return;
+    }
+    openPracticePage("study-plan");
   }
 
   function renderChatAnswer() {
@@ -946,6 +990,52 @@ export default function Home() {
             ) : null}
           </div>
         </details>
+        <button
+          type="button"
+          onClick={openMaterialsPage}
+          className="focus-ring mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-blue-500"
+        >
+          <FileText size={16} /> View all materials
+        </button>
+      </div>
+    );
+  }
+
+  function renderPracticeMenu() {
+    const options: Array<[PracticePage, string, ReactNode]> = [
+      ["flashcards", "Flashcards", <Layers3 key="flashcards" size={16} />],
+      ["quiz", "Quiz", <Brain key="quiz" size={16} />],
+      ["study-plan", "Study Plan", <Target key="study-plan" size={16} />]
+    ];
+
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setPracticeMenuOpen((open) => !open)}
+          className="focus-ring inline-flex items-center gap-2 rounded-lg border border-blue-700/70 bg-blue-950/70 px-3 py-2 font-semibold text-blue-100 hover:border-blue-400"
+        >
+          <Brain size={16} /> Practice <ChevronDown size={15} />
+        </button>
+        {practiceMenuOpen ? (
+          <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-lg border border-slate-800 bg-slate-950/95 p-1 shadow-[0_18px_60px_rgba(2,6,23,0.65)] backdrop-blur">
+            {options.map(([page, label, icon]) => (
+              <button
+                key={page}
+                type="button"
+                onClick={() => openPracticePage(page)}
+                className={`focus-ring flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium ${
+                  practicePage === page
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-200 hover:bg-blue-950/70 hover:text-white"
+                }`}
+              >
+                {icon}
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -1275,6 +1365,462 @@ export default function Home() {
     );
   }
 
+  function renderPracticeTopBar() {
+    return (
+      <header className="flex items-center justify-between gap-4 px-5 py-4">
+        <button
+          type="button"
+          onClick={goHome}
+          className="focus-ring relative h-10 w-10 overflow-hidden rounded-lg border border-blue-500/50 bg-slate-950 shadow-lg shadow-blue-950/40"
+          aria-label="Cramly home"
+        >
+          <Image
+            src="/cramly-logo.png"
+            alt="Cramly logo"
+            fill
+            priority
+            sizes="40px"
+            className="object-cover"
+          />
+        </button>
+
+        <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
+          {renderPracticeMenu()}
+          <button
+            type="button"
+            onClick={openMaterialsPage}
+            className={`focus-ring inline-flex items-center gap-2 rounded-lg border px-3 py-2 font-semibold ${
+              practicePage === "materials"
+                ? "border-blue-500 bg-blue-600 text-white"
+                : "border-slate-700 bg-slate-950/80 text-slate-100 hover:border-blue-500"
+            }`}
+          >
+            <FileText size={16} /> Materials
+          </button>
+          <button
+            type="button"
+            onClick={() => refresh()}
+            className="focus-ring rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 font-medium text-slate-100 hover:border-blue-500"
+          >
+            Refresh
+          </button>
+          <button
+            type="button"
+            onClick={signOut}
+            className="focus-ring inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 font-medium text-slate-100 hover:border-blue-500"
+          >
+            <LogOut size={16} /> Sign out
+          </button>
+        </div>
+      </header>
+    );
+  }
+
+  function renderPracticeRightNav(current: PracticePage) {
+    const options: Array<[PracticePage, string, ReactNode]> = [
+      ["flashcards", "Flashcards", <Layers3 key="flashcards" size={17} />],
+      ["quiz", "Quizzes", <Brain key="quiz" size={17} />],
+      ["study-plan", "Study Plan", <Target key="study-plan" size={17} />]
+    ];
+
+    return (
+      <div className="grid gap-2">
+        {options.map(([page, label, icon]) => (
+          <button
+            key={page}
+            type="button"
+            onClick={() => openPracticePage(page)}
+            className={`focus-ring inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
+              current === page
+                ? "border-blue-500 bg-blue-600 text-white shadow-[0_0_35px_rgba(37,99,235,0.28)]"
+                : "border-slate-700 bg-slate-950/85 text-slate-100 hover:border-blue-500"
+            }`}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function renderPracticeShell(
+    current: PracticePage,
+    title: string,
+    leftRail: ReactNode,
+    center: ReactNode,
+    rightRail: ReactNode
+  ) {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-[#050914] text-slate-100">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.055)_1px,transparent_1px)] bg-[size:56px_56px]" />
+        <div className="relative z-10 flex min-h-screen flex-col">
+          {renderPracticeTopBar()}
+          <section className="relative flex flex-1 flex-col justify-center px-5 pb-8 pt-3">
+            <section className="mx-auto w-full max-w-5xl">
+              <p className="mb-4 text-center text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">
+                Practice
+              </p>
+              <h1 className="mb-5 text-center text-3xl font-semibold text-slate-50 sm:text-4xl">{title}</h1>
+              {center}
+            </section>
+            <div className="mx-auto mt-6 grid w-full max-w-5xl gap-4 md:grid-cols-2 2xl:contents">
+              <aside className="2xl:fixed 2xl:left-5 2xl:top-24 2xl:w-60">
+                {leftRail}
+              </aside>
+              <aside className="2xl:fixed 2xl:right-5 2xl:top-24 2xl:w-56">
+                <div className="grid gap-4">
+                  {renderPracticeRightNav(current)}
+                  {rightRail}
+                </div>
+              </aside>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  function renderFlashcardPage() {
+    const allFlashcards = savedFlashcards.length ? savedFlashcards : cards;
+    const card = currentFlashcard;
+    const key = card ? flashcardKey(card) : "";
+    const flipped = card ? Boolean(flippedCards[key]) : false;
+
+    const leftRail = (
+      <div className="sticky top-5 grid gap-3">
+        <button
+          type="button"
+          onClick={() => setFlashcardListOpen((open) => !open)}
+          className="focus-ring inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-blue-700/70 bg-blue-950/70 px-3 py-2 text-sm font-semibold text-blue-100 hover:border-blue-400"
+        >
+          <List size={17} /> List <ChevronDown size={15} />
+        </button>
+        {flashcardListOpen ? (
+          <div className="max-h-[calc(100vh-10rem)] overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/85 p-2 shadow-[0_18px_60px_rgba(2,6,23,0.45)]">
+            {allFlashcards.map((item, index) => (
+              <button
+                key={`${flashcardKey(item)}-${index}`}
+                type="button"
+                onClick={() => {
+                  setCards(allFlashcards);
+                  setFlashcardView(savedFlashcards.length ? "saved" : flashcardView);
+                  setCurrentFlashcardIndex(index);
+                  setFlashcardDisplayMode("card");
+                }}
+                className={`focus-ring mb-2 block w-full rounded-md border px-3 py-2 text-left text-sm leading-5 ${
+                  card && flashcardKey(item) === flashcardKey(card)
+                    ? "border-blue-500 bg-blue-600/20 text-blue-50"
+                    : "border-slate-800 bg-slate-900/70 text-slate-300 hover:border-blue-500"
+                }`}
+              >
+                <span className="line-clamp-2 font-medium">{item.question}</span>
+                <span className="mt-1 block truncate text-xs text-slate-500">{item.topic}</span>
+              </button>
+            ))}
+            {!allFlashcards.length ? (
+              <p className="rounded-md bg-slate-900/80 p-3 text-sm leading-6 text-slate-400">
+                Generate flashcards or open past flashcards to fill this list.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+
+    const center = (
+      <div className="mx-auto w-full max-w-4xl">
+        <div className="rounded-[1.5rem] border border-blue-900/70 bg-blue-950/25 p-4 shadow-[0_0_80px_rgba(37,99,235,0.14)] sm:p-6">
+          {card ? (
+            <>
+              <div className="mb-4 flex items-center justify-between gap-3 text-sm text-blue-200/85">
+                <span className="truncate">{card.topic}</span>
+                <span className="shrink-0">{formatSavedDate(card.created_at)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFlippedCards((current) => ({ ...current, [key]: !current[key] }))}
+                className="focus-ring flex min-h-[24rem] w-full flex-col justify-center rounded-[1.25rem] border border-blue-800/80 bg-slate-950/80 p-7 text-left transition hover:border-blue-400 sm:min-h-[30rem] sm:p-10"
+              >
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">
+                  {flipped ? "Answer" : "Prompt"}
+                </span>
+                <span className="mt-6 block text-2xl font-semibold leading-10 text-blue-50 sm:text-3xl sm:leading-[3rem]">
+                  {flipped ? card.answer : card.question}
+                </span>
+                <span className="mt-8 block text-sm text-blue-200/80">
+                  {flipped ? "Choose how well you knew it." : "Tap to flip"}
+                </span>
+              </button>
+              {flipped ? (
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(["again", "hard", "good", "easy"] as const).map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => reviewFlashcard(card, rating)}
+                      disabled={!card.id}
+                      className="focus-ring rounded-lg border border-blue-800/70 bg-slate-950 px-3 py-2 text-sm font-medium capitalize text-blue-100 hover:border-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {rating}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="grid min-h-[30rem] place-items-center rounded-[1.25rem] border border-blue-900/70 bg-slate-950/70 p-8 text-center">
+              <div>
+                <Layers3 className="mx-auto mb-4 text-blue-300" size={36} />
+                <p className="text-xl font-semibold text-slate-100">No flashcards loaded</p>
+                <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
+                  Generate new flashcards, load due cards, or open past flashcards.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="mx-auto mt-5 flex max-w-xl items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setCurrentFlashcardIndex(Math.max(0, activeFlashcardIndex - 1))}
+            disabled={!cards.length || activeFlashcardIndex === 0}
+            className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <ChevronLeft size={16} /> Previous
+          </button>
+          <span className="shrink-0 text-sm font-semibold text-blue-100">
+            {card ? `${currentFlashcardNumber} of ${cards.length}` : "0 of 0"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCurrentFlashcardIndex(Math.min(cards.length - 1, activeFlashcardIndex + 1))}
+            disabled={!cards.length || activeFlashcardIndex >= cards.length - 1}
+            className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+    );
+
+    const rightRail = (
+      <div className="grid gap-2">
+        <button
+          type="button"
+          onClick={generateFlashcards}
+          disabled={busy === "flashcards"}
+          className="focus-ring rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {busy === "flashcards" ? "Creating..." : "New"}
+        </button>
+        <button
+          type="button"
+          onClick={showDueFlashcards}
+          className={`focus-ring rounded-lg border px-3 py-2 text-sm font-medium ${
+            flashcardView === "due"
+              ? "border-blue-500 bg-blue-600/20 text-blue-100"
+              : "border-slate-700 bg-slate-950 text-slate-100 hover:border-blue-500"
+          }`}
+        >
+          Due Today
+        </button>
+        <button
+          type="button"
+          onClick={showSavedFlashcards}
+          className={`focus-ring rounded-lg border px-3 py-2 text-sm font-medium ${
+            flashcardView === "saved"
+              ? "border-blue-500 bg-blue-600/20 text-blue-100"
+              : "border-slate-700 bg-slate-950 text-slate-100 hover:border-blue-500"
+          }`}
+        >
+          Past Flashcards {savedFlashcards.length ? `(${savedFlashcards.length})` : ""}
+        </button>
+      </div>
+    );
+
+    return renderPracticeShell("flashcards", "Flashcards", leftRail, center, rightRail);
+  }
+
+  function renderQuizPage() {
+    const leftRail = (
+      <div className="sticky top-5 rounded-lg border border-slate-800 bg-slate-950/75 p-4">
+        <p className="text-sm font-semibold text-slate-100">Quiz bank</p>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          {savedQuizzes.length ? `${savedQuizzes.length} saved quizzes available.` : "Past quizzes will appear here."}
+        </p>
+      </div>
+    );
+
+    const rightRail = (
+      <div className="grid gap-2">
+        <button
+          type="button"
+          onClick={generateQuiz}
+          disabled={busy === "quiz"}
+          className="focus-ring rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {busy === "quiz" ? "Creating..." : "New Quiz"}
+        </button>
+        <button
+          type="button"
+          onClick={showSavedQuizzes}
+          className="focus-ring rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-medium text-slate-100 hover:border-blue-500"
+        >
+          Past Quizzes {savedQuizzes.length ? `(${savedQuizzes.length})` : ""}
+        </button>
+      </div>
+    );
+
+    return renderPracticeShell("quiz", "Quiz", leftRail, <div className="mx-auto w-full max-w-3xl">{renderQuizContent()}</div>, rightRail);
+  }
+
+  function renderStudyPlanPage() {
+    const leftRail = (
+      <div className="sticky top-5 rounded-lg border border-slate-800 bg-slate-950/75 p-4">
+        <p className="text-sm font-semibold text-slate-100">Focus topics</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {plan.focus_topics.map((topic) => (
+            <span key={topic} className="rounded-full bg-blue-600/20 px-2.5 py-1 text-xs text-blue-100 ring-1 ring-blue-500/30">
+              {topic}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+
+    const center = (
+      <div className="mx-auto grid w-full max-w-4xl gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="rounded-lg border border-slate-800 bg-slate-950/70 p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <Target className="text-blue-300" size={20} /> Focus Plan
+            </h2>
+          </div>
+          {renderFocusContent()}
+        </section>
+        <section className="rounded-lg border border-slate-800 bg-slate-950/70 p-5">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+            <BookOpen className="text-blue-300" size={20} /> Weak Points
+          </h2>
+          {renderWeakContent()}
+        </section>
+      </div>
+    );
+
+    const rightRail = (
+      <button
+        type="button"
+        onClick={generateStudyPlan}
+        disabled={busy === "study-plan"}
+        className="focus-ring rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        {busy === "study-plan" ? "Generating..." : plan.id ? "Refresh Plan" : "Generate Plan"}
+      </button>
+    );
+
+    return renderPracticeShell("study-plan", "Study Plan", leftRail, center, rightRail);
+  }
+
+  function renderMaterialsPage() {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-[#050914] text-slate-100">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.055)_1px,transparent_1px)] bg-[size:56px_56px]" />
+        <div className="relative z-10 flex min-h-screen flex-col">
+          {renderPracticeTopBar()}
+          <section className="flex flex-1 flex-col items-center justify-center px-5 pb-10 pt-4 text-center">
+            <div className="w-full max-w-4xl">
+              <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">
+                Cramly
+              </p>
+              <h1 className="text-3xl font-semibold text-slate-50 sm:text-4xl">Study Materials</h1>
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+                Review every file you have uploaded and remove anything you no longer want indexed.
+              </p>
+
+              <label className="focus-ring mx-auto mt-6 flex min-h-20 max-w-2xl cursor-pointer items-center justify-between gap-4 rounded-[1.25rem] border border-slate-800 bg-slate-950/80 p-4 text-left shadow-[0_0_50px_rgba(37,99,235,0.1)] hover:border-blue-700/70 hover:bg-blue-950/20">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-600/20 text-blue-200 ring-1 ring-blue-500/30">
+                    <Upload size={22} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-slate-100">{busy === "upload" ? "Indexing..." : "Upload study materials"}</span>
+                    <span className="mt-1 block truncate text-xs text-slate-400">PDF, DOCX, PPTX, TXT, Markdown, CSV, PNG, JPG, WEBP, TIFF</span>
+                  </span>
+                </span>
+                <span className="hidden rounded-lg border border-blue-800/70 bg-blue-950/50 px-3 py-2 text-sm font-medium text-blue-100 sm:inline-flex">
+                  Choose file
+                </span>
+                <input
+                  className="sr-only"
+                  type="file"
+                  accept=".pdf,.docx,.pptx,.txt,.md,.markdown,.csv,.png,.jpg,.jpeg,.webp,.tif,.tiff"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) uploadFile(file);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+
+              <div className="mt-6 rounded-[1.25rem] border border-slate-800 bg-slate-950/75 p-4 text-left shadow-[0_0_80px_rgba(37,99,235,0.12)]">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-100">
+                    <FileText className="text-blue-300" size={20} /> Uploaded Materials
+                  </h2>
+                  <span className="rounded-full bg-blue-600/20 px-3 py-1 text-sm font-semibold text-blue-100 ring-1 ring-blue-500/30">
+                    {documents.length}
+                  </span>
+                </div>
+                <div className="max-h-[58vh] space-y-3 overflow-y-auto pr-1">
+                  {documents.map((document) => (
+                    <div key={document.id} className="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-100">{document.name}</p>
+                          <p className="mt-1 text-sm text-slate-400">{document.chunks} indexed chunks</p>
+                          {document.keywords.length ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {document.keywords.slice(0, 8).map((keyword) => (
+                                <span key={keyword} className="rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-300">
+                                  {keyword}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <span className="rounded-full bg-blue-600/20 px-2 py-1 text-xs font-medium text-blue-100 ring-1 ring-blue-500/30">{document.status}</span>
+                          <button
+                            type="button"
+                            onClick={() => deleteDocument(document)}
+                            disabled={busy === `delete-document-${document.id}`}
+                            className={`focus-ring inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium ${
+                              confirmingDocumentId === document.id
+                                ? "border-red-500/70 bg-red-950/50 text-red-100 hover:border-red-300"
+                                : "border-slate-700 bg-slate-950 text-slate-300 hover:border-red-500/70 hover:text-red-100"
+                            } disabled:cursor-not-allowed disabled:opacity-70`}
+                          >
+                            <Trash2 size={13} /> {confirmingDocumentId === document.id ? "Confirm" : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {!documents.length ? (
+                    <p className="rounded-lg bg-slate-900/80 p-5 text-center text-sm leading-6 text-slate-400 ring-1 ring-slate-800">
+                      Uploaded materials will appear here.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   function renderPracticeContent() {
     if (practiceSection === "flashcards") return renderFlashcardContent();
     if (practiceSection === "quiz") return renderQuizContent();
@@ -1289,8 +1835,8 @@ export default function Home() {
         <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/20 blur-3xl" />
         <div className="absolute left-1/2 top-24 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-400/10 blur-3xl" />
 
-        <section className="relative z-10 flex w-full max-w-3xl flex-col items-center text-center">
-          <div className="relative mb-8 h-56 w-56 overflow-hidden rounded-[2rem] border border-blue-500/50 bg-slate-950 shadow-[0_0_90px_rgba(37,99,235,0.5)] sm:h-72 sm:w-72">
+        <section className={`relative z-10 flex w-full max-w-3xl flex-col items-center text-center ${landingExiting ? "landing-stage-exit" : ""}`}>
+          <div className="landing-pop landing-pop-logo relative mb-8 h-56 w-56 overflow-hidden rounded-[2rem] border border-blue-500/50 bg-slate-950 shadow-[0_0_90px_rgba(37,99,235,0.5)] sm:h-72 sm:w-72">
             <Image
               src="/cramly-logo.png"
               alt="Cramly logo"
@@ -1300,18 +1846,19 @@ export default function Home() {
               className="object-cover"
             />
           </div>
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">Cramly</p>
-          <h1 className="text-4xl font-semibold leading-tight text-slate-50 sm:text-5xl">
+          <p className="landing-pop landing-pop-kicker mb-3 text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">Cramly</p>
+          <h1 className="landing-pop landing-pop-title text-4xl font-semibold leading-tight text-slate-50 sm:text-5xl">
             Studying, enhanced by AI
           </h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-slate-400 sm:text-lg">
+          <p className="landing-pop landing-pop-copy mt-4 max-w-xl text-base leading-7 text-slate-400 sm:text-lg">
             Turn notes, lectures, PDFs, flashcards, and quizzes into one focused exam prep workspace.
           </p>
           <button
-            onClick={() => setShowDashboard(true)}
-            className="focus-ring mt-8 min-h-12 rounded-lg bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-[0_0_40px_rgba(37,99,235,0.45)] transition hover:bg-blue-500"
+            onClick={openStudyDashboard}
+            disabled={landingExiting}
+            className="landing-pop landing-pop-button focus-ring mt-8 min-h-12 rounded-lg bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-[0_0_40px_rgba(37,99,235,0.45)] transition hover:bg-blue-500 disabled:bg-blue-700"
           >
-            Open Study Dashboard
+            {landingExiting ? "Opening..." : "Open Study Dashboard"}
           </button>
         </section>
       </main>
@@ -1434,6 +1981,11 @@ export default function Home() {
     );
   }
 
+  if (practicePage === "flashcards") return renderFlashcardPage();
+  if (practicePage === "quiz") return renderQuizPage();
+  if (practicePage === "study-plan") return renderStudyPlanPage();
+  if (practicePage === "materials") return renderMaterialsPage();
+
   return (
     <>
       <main className="relative min-h-screen overflow-hidden bg-[#050914] text-slate-100">
@@ -1442,7 +1994,7 @@ export default function Home() {
           <header className="flex items-center justify-between gap-4 px-5 py-4">
             <button
               type="button"
-              onClick={() => setShowDashboard(true)}
+              onClick={goHome}
               className="focus-ring relative h-10 w-10 overflow-hidden rounded-lg border border-blue-500/50 bg-slate-950 shadow-lg shadow-blue-950/40"
               aria-label="Cramly home"
             >
@@ -1457,12 +2009,13 @@ export default function Home() {
             </button>
 
             <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
+              {renderPracticeMenu()}
               <button
                 type="button"
-                onClick={() => openPractice("focus")}
-                className="focus-ring inline-flex items-center gap-2 rounded-lg border border-blue-700/70 bg-blue-950/70 px-3 py-2 font-semibold text-blue-100 hover:border-blue-400"
+                onClick={openMaterialsPage}
+                className="focus-ring inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 font-semibold text-slate-100 hover:border-blue-500"
               >
-                <Brain size={16} /> Practice
+                <FileText size={16} /> Materials
               </button>
               <button
                 type="button"
