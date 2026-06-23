@@ -846,11 +846,20 @@ export default function Home() {
 
   function renderMaterialsContent() {
     return (
-      <div className="mx-auto mt-7 w-full max-w-3xl">
-        <label className="focus-ring flex min-h-28 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-blue-700/60 bg-blue-950/20 p-5 text-center hover:bg-blue-950/35">
-          <Upload className="text-blue-300" size={26} />
-          <span className="font-medium text-slate-100">{busy === "upload" ? "Indexing..." : "Upload study materials"}</span>
-          <span className="text-xs text-slate-400">PDF, DOCX, PPTX, TXT, Markdown, CSV, PNG, JPG, WEBP, TIFF</span>
+      <div className="mx-auto mt-7 w-full max-w-[50rem]">
+        <label className="focus-ring flex min-h-24 cursor-pointer items-center justify-between gap-4 rounded-[1.25rem] border border-slate-800 bg-slate-950/80 p-4 text-left shadow-[0_0_50px_rgba(37,99,235,0.1)] hover:border-blue-700/70 hover:bg-blue-950/20">
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-600/20 text-blue-200 ring-1 ring-blue-500/30">
+              <Upload size={22} />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-semibold text-slate-100">{busy === "upload" ? "Indexing..." : "Upload study materials"}</span>
+              <span className="mt-1 block truncate text-xs text-slate-400">PDF, DOCX, PPTX, TXT, Markdown, CSV, PNG, JPG, WEBP, TIFF</span>
+            </span>
+          </span>
+          <span className="hidden rounded-lg border border-blue-800/70 bg-blue-950/50 px-3 py-2 text-sm font-medium text-blue-100 sm:inline-flex">
+            Choose file
+          </span>
           <input
             className="sr-only"
             type="file"
@@ -863,7 +872,7 @@ export default function Home() {
           />
         </label>
         {uploadState.fileName ? (
-          <div className={`mt-4 rounded-lg border p-4 text-left ${uploadState.error ? "border-red-900/70 bg-red-950/35" : "border-blue-900/70 bg-slate-950/70"}`}>
+          <div className={`mt-3 rounded-lg border p-4 text-left ${uploadState.error ? "border-red-900/70 bg-red-950/35" : "border-blue-900/70 bg-slate-950/70"}`}>
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold text-slate-100">{uploadState.fileName}</p>
@@ -885,14 +894,32 @@ export default function Home() {
             </div>
           </div>
         ) : null}
-        {documents.length ? (
-          <div className="mt-4 grid gap-3 text-left">
-            {documents.slice(0, 4).map((document) => (
-              <div key={document.id} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+        <details className="mt-3 rounded-[1.25rem] border border-slate-800 bg-slate-950/70 p-4 text-left">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-slate-200">
+            <span className="inline-flex items-center gap-2">
+              <FileText className="text-blue-300" size={17} />
+              Uploaded materials
+            </span>
+            <span className="rounded-full bg-blue-600/20 px-2.5 py-1 text-xs text-blue-100 ring-1 ring-blue-500/30">
+              {documents.length}
+            </span>
+          </summary>
+          <div className="mt-4 max-h-72 space-y-3 overflow-y-auto pr-1">
+            {documents.map((document) => (
+              <div key={document.id} className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{document.name}</p>
                     <p className="mt-1 text-sm text-slate-400">{document.chunks} indexed chunks</p>
+                    {document.keywords.length ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {document.keywords.slice(0, 4).map((keyword) => (
+                          <span key={keyword} className="rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-300">
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="rounded-full bg-blue-600/20 px-2 py-1 text-xs font-medium text-blue-100 ring-1 ring-blue-500/30">{document.status}</span>
@@ -903,7 +930,7 @@ export default function Home() {
                       className={`focus-ring inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium ${
                         confirmingDocumentId === document.id
                           ? "border-red-500/70 bg-red-950/50 text-red-100 hover:border-red-300"
-                          : "border-slate-700 bg-slate-900 text-slate-300 hover:border-red-500/70 hover:text-red-100"
+                          : "border-slate-700 bg-slate-950 text-slate-300 hover:border-red-500/70 hover:text-red-100"
                       } disabled:cursor-not-allowed disabled:opacity-70`}
                     >
                       <Trash2 size={13} /> {confirmingDocumentId === document.id ? "Confirm" : "Delete"}
@@ -912,8 +939,13 @@ export default function Home() {
                 </div>
               </div>
             ))}
+            {!documents.length ? (
+              <p className="rounded-lg bg-slate-900/80 p-4 text-sm leading-6 text-slate-400 ring-1 ring-slate-800">
+                Uploaded materials will appear here.
+              </p>
+            ) : null}
           </div>
-        ) : null}
+        </details>
       </div>
     );
   }
@@ -1449,23 +1481,23 @@ export default function Home() {
             </div>
           </header>
 
-          <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-5 py-10 text-center">
-            <div className="mb-8 flex items-center justify-center gap-4">
-              <div className="relative h-16 w-16 overflow-hidden rounded-2xl border border-blue-500/50 bg-slate-950 shadow-[0_0_50px_rgba(37,99,235,0.35)]">
+          <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-5 pb-10 pt-4 text-center lg:-mt-12">
+            <div className="mb-8 flex items-center justify-center gap-5">
+              <div className="relative h-20 w-20 overflow-hidden rounded-[1.35rem] border border-blue-500/50 bg-slate-950 shadow-[0_0_60px_rgba(37,99,235,0.36)] sm:h-24 sm:w-24">
                 <Image
                   src="/cramly-logo.png"
                   alt="Cramly logo"
                   fill
                   priority
-                  sizes="64px"
+                  sizes="(max-width: 640px) 80px, 96px"
                   className="object-cover"
                 />
               </div>
-              <h1 className="text-5xl font-semibold tracking-normal text-slate-50 sm:text-6xl">Cramly</h1>
+              <h1 className="text-6xl font-semibold tracking-normal text-slate-50 sm:text-7xl">Cramly</h1>
             </div>
 
-            <form onSubmit={ask} className="w-full max-w-3xl">
-              <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/85 p-3 shadow-[0_0_80px_rgba(37,99,235,0.16)]">
+            <form onSubmit={ask} className="w-full max-w-[50rem]">
+              <div className="rounded-[1.75rem] border border-slate-800 bg-slate-950/85 p-3 shadow-[0_0_80px_rgba(37,99,235,0.16)]">
                 <textarea
                   value={question}
                   onChange={(event) => setQuestion(event.target.value)}
@@ -1475,7 +1507,7 @@ export default function Home() {
                       event.currentTarget.form?.requestSubmit();
                     }
                   }}
-                  className="focus-ring min-h-16 w-full resize-none rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-base leading-7 text-slate-100 placeholder:text-slate-500"
+                  className="focus-ring min-h-16 w-full resize-none rounded-[1.25rem] border border-slate-800 bg-slate-900/80 px-5 py-4 text-base leading-7 text-slate-100 placeholder:text-slate-500"
                   placeholder="What do you want to study?"
                 />
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -1509,14 +1541,14 @@ export default function Home() {
               </div>
             </form>
 
-            <p className="mt-4 max-w-3xl rounded-full border border-blue-900/60 bg-blue-950/40 px-4 py-2 text-sm text-blue-100">
+            <p className="mt-4 max-w-[50rem] rounded-full border border-blue-900/60 bg-blue-950/40 px-4 py-2 text-sm text-blue-100">
               {notice}
             </p>
 
             {renderChatAnswer()}
             {renderMaterialsContent()}
 
-            <details className="mx-auto mt-6 w-full max-w-3xl rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-left">
+            <details className="mx-auto mt-5 w-full max-w-[50rem] rounded-[1.25rem] border border-slate-800 bg-slate-950/60 p-4 text-left">
               <summary className="cursor-pointer text-sm font-semibold text-slate-200">Account safety</summary>
               <form onSubmit={changePassword} className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-2 text-sm font-medium text-slate-200">
